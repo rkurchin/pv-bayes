@@ -1,7 +1,6 @@
 import ID_pmf as pmf
 from copy import deepcopy
 from scipy.stats import norm
-import numpy as np
 
 def likelihood(probs, J_meas, V_meas, T, J_err):
     '''
@@ -17,12 +16,12 @@ def likelihood(probs, J_meas, V_meas, T, J_err):
         * other error models (e.g. exponential for current etc.)
     '''
 
-    lkl=deepcopy(probs)
+    lkl = deepcopy(probs)
     param_vals = lkl.box_centers()
 
     for i in range(len(param_vals['n'])):
         for j in range(len(param_vals['J_0'])):
-            if lkl._m[i,j]==lkl._M: #should this point get updated?
+            if lkl._m[i, j] == lkl._M:  # should this point get updated?
                 # if so, compute modeled value
                 J_model = lkl.compute_ID(V_meas, T, {'n':param_vals['n'][i],'J_0':param_vals['J_0'][j]})
                 # and update likelihood

@@ -17,7 +17,9 @@ class Pmf(object):
     [TODO: IT SHOULD UPDATE AT OTHER PLACES BUT ONLY AT THE COARSENESS OF THAT
     LEVEL OF SUBDIVISION]
     --> this will prevent "freezing out" of regions that later observations make more probable
-    --> could in principle be avoided by clever initial bounds and thresholding
+    --> I think we can multiply and update the whole thing but "redistribute"
+    --  probabilities uniformly through the larger regions afterwards
+    --> need to store and communicate the prior grid boundaries I think?
 
     I think for generality there will have to be a separate kernel (or something?)
     for how actual likelihoods are computed and allowing for flexible number of
