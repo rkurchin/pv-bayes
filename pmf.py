@@ -17,9 +17,8 @@ class Pmf(object):
     [TODO: IT SHOULD UPDATE AT OTHER PLACES BUT ONLY AT THE COARSENESS OF THAT
     LEVEL OF SUBDIVISION]
     --> this will prevent "freezing out" of regions that later observations make more probable
-    --> I think we can multiply and update the whole thing but "redistribute"
-    --  probabilities uniformly through the larger regions afterwards
-    --> need to store and communicate the prior grid boundaries I think?
+    --> Store list of "active" parameter values for which probabilities should be calculated and map those to sets of indices into the probability matrix over which the probability should be averaged - this will be updated by the subdivide() function
+    --> likelihood function (or wherever model gets run) will be responsible for deciding if a set of parameters needs to be calculated or if it can just be looked up
 
     I think for generality there will have to be a separate kernel (or something?)
     for how actual likelihoods are computed and allowing for flexible number of
@@ -63,6 +62,27 @@ class Pmf(object):
         self._M = 1
         self._m = np.ones(dim_lengths)
 
+        # initiate list of active values
+        '''
+        Write this part! What is the best way to store these?
+        Maybe as a list of nested dicts mapping dicts of param vals to slices
+
+        [{{param1:val1, param2:val2, ...}:(slice(low1, hi1), slice(low2, hi2), ...)}, ...]
+
+        Then the value of the outer dict can be used to directly index into probs.
+        And the key can be used to run the model if the function for that is written properly.
+
+        So the bit in the likelihood function would look something like
+
+        for param_vals in active_param_list.keys():
+            J = calc_model(param_vals, conds) # the model calc should then take in a dict
+            prob = calc_prob(J, conds, param_vals) # or whatever
+            inds = [active_param_list[key]]
+            sliced = probs[inds]
+            num_boxes = sliced.size
+            probs[inds] = prob / num_boxes
+        '''
+
     def dim_lengths(self):
         '''
         Return current lengths along each dimension.
@@ -96,7 +116,6 @@ class Pmf(object):
         to get centers)
         '''
         return {self.params[i]:self.var_range(i,2*self.probs.shape[i]+1)[np.arange(1,2*self.probs.shape[i]+1,2)] for i in range(len(self.params))}
-
 
     def normalize(self):
         '''
@@ -143,38 +162,37 @@ class Pmf(object):
         (either only subdivide by even numbers or be smart about copying results
         back into center boxes if subdividing oddly)
 
-        TODO: if this gets slow, it's probably due to np.kron - could rewrite with np.repeat
+        TODO:
+            *
+            * if this gets slow, it's probably due to np.kron - could rewrite with np.repeat
 
         '''
         # number of subdivisions along each dimension
-        num_divs = 2 * np.ones(len(self.params),dtype=np.int) #dummy for now
-        #print('product of divs:', np.prod(num_divs))
+        num_divs = 2 * np.ones(len(self.params),dtype=np.int) # fixed for now
+
         # increment m values before expanding matrix
         mask = self.probs>threshold_prob
-        #print('mask:',mask)
-        #self._m[mask] = self._m[mask]+1
-        #print('old m:',self._m)
-        self._m[mask] = self._M+1 #I'm pretty sure this is actually the correct one
-        #print('new m:',self._m)
+        self._m[mask] = self._M+1
+
+        # update list of active parameter values using mask
+        '''
+        write this part!
+        '''
+
         # use Numpy Kronecker product to expand the matrices (normalizing probs)
         self._m = np.kron(self._m,np.ones(num_divs))
-        #print('expanded m:',self._m)
-        #print('probs before expanding:',self.probs)
-        #print('expanded probs before normalizing:',np.kron(self.probs,np.ones(num_divs)))
         self.probs = np.kron(self.probs,np.ones(num_divs))/np.prod(num_divs)
 
         # increment overall subdivision indicator
         self._M = self._M +1
 
+
     def multiply(self, other_pmf):
         '''
         Compute and store renormalized product of this Pmf with other_pmf.
-        Only multiply and normalize boxes where m = M in THIS Pmf.
-        (Note that this makes it a non-commutative operation)
 
         TODO:
             * maybe this should return a new Pmf object instead? TBD
-            * figure out how to check
         '''
 
         # check for silliness
@@ -183,9 +201,8 @@ class Pmf(object):
         #maybe also add checks for parameter names and ranges? Should probably just throw
         #warnings though if mismatched
 
-        # make mask and multiply
-        mask = self._m==self._M
-        self.probs[mask] = np.multiply(self.probs[mask],other_pmf.probs[mask])
+        # multiply all the probabilities
+        self.probs = np.multiply(self.probs,other_pmf.probs)
 
         # and normalize
         self.normalize()

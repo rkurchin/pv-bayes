@@ -19,6 +19,10 @@ def likelihood(probs, J_meas, V_meas, T, J_err):
     lkl = deepcopy(probs)
     param_vals = lkl.box_centers()
 
+    '''
+    This next part should get changed to reference the "active" parameter values once that part of the Pmf stuff gets updated
+    '''
+
     for i in range(len(param_vals['n'])):
         for j in range(len(param_vals['J_0'])):
             if lkl._m[i, j] == lkl._M:  # should this point get updated?
