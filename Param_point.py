@@ -25,5 +25,15 @@ class Param_point(object):
 
         return Param_point(self.params, self.prob + other.prob)
 
+    def __mul__(self,other):
+
+        """
+        Overload multiplication to multiply together probabilities for Bayesian updating.
+        """
+
+        assert self.params == other.params, "These probabilities are at different points in parameter space! You probably don't actually want to multiply them together."
+
+        return Param_point(self.params, self.prob * other.prob)
+
     def __str__(self):
         return "param values" + str(self.params) + " probability: " + str(self.prob)
