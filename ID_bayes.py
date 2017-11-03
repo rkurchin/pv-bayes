@@ -17,16 +17,12 @@ def likelihood(probs, J_meas, V_meas, T, J_err):
     '''
 
     lkl = deepcopy(probs)
-    param_vals = lkl.box_centers()
 
     '''
     This should end up looking something like:
     for param_vals in active_param_list:
         J = calc_model(param_vals['point'], conds) # the model calc should then take in a dict
         prob = calc_prob(J, conds, param_vals['point']) # or whatever
-        inds = param_vals['slices']
-        sliced = probs[inds]
-        num_boxes = sliced.size
         probs[inds] = prob / num_boxes
     '''
 
@@ -40,20 +36,3 @@ def likelihood(probs, J_meas, V_meas, T, J_err):
 
     lkl.normalize()
     return lkl
-'''
-lkl=likelihood(test, currents_500[5], voltages[5], 500, 5)
-test.multiply(lkl)
-print test.most_probable(1)
-
-lkl=likelihood(test, currents_300[5], voltages[5], 300, 5)
-test.multiply(lkl)
-print test.most_probable(1)
-
-#this one is refusing to normalize at the moment, sigh
-#lkl=likelihood(test, currents_500[1], voltages[1], 500, 0.3)
-#test.multiply(lkl)
-
-lkl=likelihood(test, currents_100[4], voltages[4], 100, 20)
-test.multiply(lkl)
-print test.most_probable(1)
-'''

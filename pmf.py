@@ -5,45 +5,27 @@ class Pmf(object):
     """
     Class that stores a PMF capable of nested sampling / "adaptive mesh refinement".
 
-    Stores probabilities on a matrix at maximum level of refinement but only updates
-    values where indicator variable m (stored in a parallel matrix) is equal to M,
-    the global value.
+    Stores probabilities in a list of Param_point objects which associate points in parameter space with probabilities.
 
-    Includes methods for normalization and multiplication that will be useful in
-    Bayesian updating steps, which will likely be implemented elsewhere, but basic
-    procedure would be: at each step we will create a likelihood Pmf that's uniform
-    and is a clone of the "master" one with respect to M and m values, then only
-    update at places where m=M
-
-    TODO:
-        * possibly rewrite this whole thing as a collection of Param_point (or something) objects which each store values and a probability - this would make normalization a hell of a lot easier, but visualization maybe trickier (could probably base it on some of the older histogram-type stuff though?). In this case, subdivision would just kill one point and "spawn" however many new ones
-
-    I think for generality there will have to be a separate kernel (or something?)
-    for how actual likelihoods are computed and allowing for flexible number of
-    observation conditions etc. too...needs more thought.
+    A class for a specific case (e.g. JVTi with PC1D modeling, potentially TIDLS with SRH modeling, etc.) should inherit from this and include methods for calling the relevant model, computing likelihoods, etc.
 
     QUESTIONS TO THINK ABOUT:
     Where should info about observation conditions be stored? Does it need to be?
 
     How about simulation results? Can they be stored separately but maintain a
     parallel/analogous data structure? Perhaps just a big index array?
-
-    Maybe for each particular system (e.g. JVTi with PC1D sims, TIDLS with SRH
-    solver, etc. there would be a class that inherits these methods but includes more
-    particulars to that case?
-
     """
 
     def __init__(self, param_names, dim_lengths, dim_mins, dim_maxes, log_spacing):
 
         """
-        Instantiate a uniform prior, map from dimension to parameter name, and protected indicators.
+        Instantiate a uniform prior.
 
         param_names = list of strings
         dim_lengths, dim_mins, dim_maxes = lists of ints
         log_spacing = list of bools
-
         """
+
         # check that you haven't fed in anything silly
         l = len(param_names)
         assert len(dim_lengths)==l and len(dim_mins)==l and len(dim_maxes)==l and len(log_spacing)==l, "Lengths of all inputs need to match!"
@@ -55,133 +37,27 @@ class Pmf(object):
         self.param_ranges={self.params[i]:[dim_mins[i],dim_maxes[i]] for i in range(len(param_names))}
         self.logspacing = log_spacing
 
-        # initiate uniform prior with m=1 everywhere and M=1 for whole PMF
-        self.probs = np.ones(dim_lengths)/np.prod(dim_lengths)
-        self._M = 1
-        self._m = np.ones(dim_lengths)
-
-        # initiate list of active values - pretty unPythonically written, but it's more readable I think so too bad
-        points = self.list_all_params()
-        self.active_points = []
-        bc = self.box_centers()
-        for point in points:
-            slices = []
-            for param in self.params:
-                param_ind = list(bc[param]).index(point[param])
-                slices.append(slice(param_ind,param_ind+1))
-            self.active_points.append({'point':point,'slices':slices})
-
-    def list_all_params(self):
-        """
-        Return list of dicts, one for every point in parameter space.
-        (helper fcn for initiating active params list)
-
-        Dicts will be of format {param1:val1, param2:val2, ...}
-        """
-        coords = [el for el in product(*[self.box_centers()[param] for param in self.params])]
-        return [{self.params[j]:coords[i][j] for j in range(len(self.params))} for i in range(len(coords))]
-
-    def dim_lengths(self):
-        '''
-        Return current lengths along each dimension.
-
-        '''
-        return {self.params[i]:self.probs.shape[i] for i in range(len(self.params))}
-
-    def var_range(self, param_ind, num):
-        '''
-        Helper function for box_edges and box_centers
-        '''
-        range = self.param_ranges[self.params[param_ind]]
-        if self.logspacing[param_ind] == True:
-            return np.logspace(np.log10(range[0]),np.log10(range[1]),num)
-        elif self.logspacing[param_ind] == False:
-            return np.linspace(range[0],range[1],num)
-
-    def box_edges(self):
-        '''
-        Calculate boundaries of each box along each dimension
-        (outputs will be of length dim_lengths * M + 1)
-        '''
-        return {self.params[i]:self.var_range(i,self.probs.shape[i]+1) for i in range(len(self.params))}
-
-    def box_centers(self):
-        '''
-        Calculate values at center of each box along each dimension
-        (outputs will be of length dim_lengths * M)
-
-        (it takes 2N+1 vals (i.e. edges and centers) and then picks odd-indexed values
-        to get centers)
-        '''
-        return {self.params[i]:self.var_range(i,2*self.probs.shape[i]+1)[np.arange(1,2*self.probs.shape[i]+1,2)] for i in range(len(self.params))}
+        # make lists of values of each param
+        # do a itertools.product on that to get list of points
+        # make those into the dictionaries (maybe write a helper method for this?)
+        # use those to initialize the Param_point objects
 
     def normalize(self):
-        '''
-        should fix probability values at lower values of M than the current one
-        only change the values where m=M
-        (this may not be necessary depending on how Bayesian update is implemented
-        but probably easier to have this way)
 
-        TODO: if this gets slow, reimplement with numba.jit
-        '''
-        # first create mask array of where m == M
-        #mask = self._m==1
-        mask = self._m[:]==self._M
-        #print('mask:',mask)
+        """
+        Normalize overall PMF.
+        """
 
-        # check that parts we won't change sum to less than 1, otherwise can't normalize
-        assert np.sum(self.probs[np.invert(mask)]) < 1.0, "Can't normalize, fixed values sum to greater than 1!"
+        # do things
 
-        # compute normalization constant
-        n = np.sum(self.probs[mask])/(1-np.sum(self.probs[np.invert(mask)]))
-        #print('sum:',np.sum(self.probs),'norm const:',n)
-
-        # normalize
-        self.probs[mask] = self.probs[mask]/n
-
-        # deal with some machine precision issues
-        self.probs = self.probs/np.sum(self.probs)
-
-        # check that overall distribution is normalized
-        assert abs(np.sum(self.probs)-1.0)<1e-14, "normalization didn't work!"
 
     def subdivide(self, threshold_prob):
-        '''
-        Subdivide all boxes with P > threshold_prob and assign "locally uniform"
-        probabilities within each box.
 
-        Functionally, what this means is subdivide the whole matrix but only update
-        values of m in the boxes with large enough probability.
+        """
+        Subdivide all boxes with P > threshold_prob and assign "locally uniform" probabilities within each box.
+        """
 
-        (eventually should allow thresholding as a fraction or number of total boxes
-        and implement some sensible default options - also perhaps allow for flexibly
-        sized subdivision - customized along each direction, etc.)
-
-        (either only subdivide by even numbers or be smart about copying results
-        back into center boxes if subdividing oddly)
-
-        TODO:
-            * if this gets slow, it's probably due to np.kron - could rewrite with np.repeat
-
-        '''
-        # number of subdivisions along each dimension
-        num_divs = 2 * np.ones(len(self.params),dtype=np.int) # fixed for now
-
-        # increment m values before expanding matrix
-        mask = self.probs>threshold_prob
-        self._m[mask] = self._M+1
-
-        # update list of active parameter values using mask
-        '''
-        write this part!
-        '''
-
-        # use Numpy Kronecker product to expand the matrices (normalizing probs)
-        self._m = np.kron(self._m,np.ones(num_divs))
-        self.probs = np.kron(self.probs,np.ones(num_divs))/np.prod(num_divs)
-
-        # increment overall subdivision indicator
-        self._M = self._M +1
+        # do things
 
 
     def multiply(self, other_pmf):
@@ -194,33 +70,12 @@ class Pmf(object):
 
         # check for silliness
         assert isinstance(other_pmf, Pmf), "You didn't feed in a Pmf object!"
-        assert other_pmf.probs.shape == self.probs.shape, "Pmf sizes and shapes must match!"
-        #maybe also add checks for parameter names and ranges? Should probably just throw
-        #warnings though if mismatched
 
-        # multiply all the probabilities
-        self.probs = np.multiply(self.probs,other_pmf.probs)
-
-        # and normalize
-        self.normalize()
+        # do things
 
     def most_probable(self, n):
         '''
         Returns the n largest probabilities and the associated parameter values.
-
-        TODO:
-        Make sure this is fully general to number of parameters.
         '''
 
-        flat_indices = np.argpartition(self.probs.ravel(), -n)[-n:]
-        inds = np.unravel_index(flat_indices, self.probs.shape)
-
-        highest_probs=[{} for a in range(n)]
-        for i in range(n):
-            ind = [inds[j][i] for j in range(len(inds))]
-            prob_dict = {'prob': self.probs[tuple(ind)]}
-            for k in range(len(self.params)):
-                prob_dict[self.params[k]]=self.box_centers()[self.params[k]][ind[k]]
-            highest_probs[i]=prob_dict
-
-        return highest_probs
+        # do things
