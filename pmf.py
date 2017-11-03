@@ -1,4 +1,5 @@
 import numpy as np
+from itertools import product
 
 class Pmf(object):
     """
@@ -14,11 +15,8 @@ class Pmf(object):
     and is a clone of the "master" one with respect to M and m values, then only
     update at places where m=M
 
-    [TODO: IT SHOULD UPDATE AT OTHER PLACES BUT ONLY AT THE COARSENESS OF THAT
-    LEVEL OF SUBDIVISION]
-    --> this will prevent "freezing out" of regions that later observations make more probable
-    --> Store list of "active" parameter values for which probabilities should be calculated and map those to sets of indices into the probability matrix over which the probability should be averaged - this will be updated by the subdivide() function
-    --> likelihood function (or wherever model gets run) will be responsible for deciding if a set of parameters needs to be calculated or if it can just be looked up
+    TODO:
+        * possibly rewrite this whole thing as a collection of Param_point (or something) objects which each store values and a probability - this would make normalization a hell of a lot easier, but visualization maybe trickier (could probably base it on some of the older histogram-type stuff though?). In this case, subdivision would just kill one point and "spawn" however many new ones
 
     I think for generality there will have to be a separate kernel (or something?)
     for how actual likelihoods are computed and allowing for flexible number of
@@ -37,15 +35,15 @@ class Pmf(object):
     """
 
     def __init__(self, param_names, dim_lengths, dim_mins, dim_maxes, log_spacing):
-        '''
-        instantiate a uniform prior, map from dimension to
-        parameter name, and protected indicators
+
+        """
+        Instantiate a uniform prior, map from dimension to parameter name, and protected indicators.
 
         param_names = list of strings
         dim_lengths, dim_mins, dim_maxes = lists of ints
         log_spacing = list of bools
 
-        '''
+        """
         # check that you haven't fed in anything silly
         l = len(param_names)
         assert len(dim_lengths)==l and len(dim_mins)==l and len(dim_maxes)==l and len(log_spacing)==l, "Lengths of all inputs need to match!"
@@ -62,26 +60,26 @@ class Pmf(object):
         self._M = 1
         self._m = np.ones(dim_lengths)
 
-        # initiate list of active values
-        '''
-        Write this part! What is the best way to store these?
-        Maybe as a list of nested dicts mapping dicts of param vals to slices
+        # initiate list of active values - pretty unPythonically written, but it's more readable I think so too bad
+        points = self.list_all_params()
+        self.active_points = []
+        bc = self.box_centers()
+        for point in points:
+            slices = []
+            for param in self.params:
+                param_ind = list(bc[param]).index(point[param])
+                slices.append(slice(param_ind,param_ind+1))
+            self.active_points.append({'point':point,'slices':slices})
 
-        [{{param1:val1, param2:val2, ...}:(slice(low1, hi1), slice(low2, hi2), ...)}, ...]
+    def list_all_params(self):
+        """
+        Return list of dicts, one for every point in parameter space.
+        (helper fcn for initiating active params list)
 
-        Then the value of the outer dict can be used to directly index into probs.
-        And the key can be used to run the model if the function for that is written properly.
-
-        So the bit in the likelihood function would look something like
-
-        for param_vals in active_param_list.keys():
-            J = calc_model(param_vals, conds) # the model calc should then take in a dict
-            prob = calc_prob(J, conds, param_vals) # or whatever
-            inds = [active_param_list[key]]
-            sliced = probs[inds]
-            num_boxes = sliced.size
-            probs[inds] = prob / num_boxes
-        '''
+        Dicts will be of format {param1:val1, param2:val2, ...}
+        """
+        coords = [el for el in product(*[self.box_centers()[param] for param in self.params])]
+        return [{self.params[j]:coords[i][j] for j in range(len(self.params))} for i in range(len(coords))]
 
     def dim_lengths(self):
         '''
@@ -163,7 +161,6 @@ class Pmf(object):
         back into center boxes if subdividing oddly)
 
         TODO:
-            *
             * if this gets slow, it's probably due to np.kron - could rewrite with np.repeat
 
         '''

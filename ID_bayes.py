@@ -20,7 +20,14 @@ def likelihood(probs, J_meas, V_meas, T, J_err):
     param_vals = lkl.box_centers()
 
     '''
-    This next part should get changed to reference the "active" parameter values once that part of the Pmf stuff gets updated
+    This should end up looking something like:
+    for param_vals in active_param_list:
+        J = calc_model(param_vals['point'], conds) # the model calc should then take in a dict
+        prob = calc_prob(J, conds, param_vals['point']) # or whatever
+        inds = param_vals['slices']
+        sliced = probs[inds]
+        num_boxes = sliced.size
+        probs[inds] = prob / num_boxes
     '''
 
     for i in range(len(param_vals['n'])):
