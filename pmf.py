@@ -13,6 +13,7 @@ class Pmf(object):
 
     TODO:
     * make helper fcns for spacing, etc. based on log/linear to tidy up code and punt if statements to inside of another fcn
+    * more intuitive name for probs and Param_point?
 
     QUESTIONS TO THINK ABOUT:
     Where should info about observation conditions be stored? Does it need to be?
@@ -45,18 +46,18 @@ class Pmf(object):
         # make lists of values of each param
         param_vals=[]
         dim_lengths={param_names[i]:dim_lengths[i] for i in range(len(param_names))}
-        self.param_spacing={} # difference if linear, quotient if log
+        param_spacing={} # difference if linear, quotient if log
         param_edges={}
         for param in self.params:
             param_range = self.param_ranges[param]
             if self.logspacing[param]:
                 edges = np.geomspace(param_range[0], param_range[1], num=dim_lengths[param]+1)
                 vals = [np.sqrt(edges[j]*edges[j+1]) for j in range(dim_lengths[param])]
-                self.param_spacing[param] = vals[1]/vals[0]
+                param_spacing[param] = vals[1]/vals[0]
             elif not self.logspacing[param]:
                 edges = np.linspace(param_range[0], param_range[1], num=dim_lengths[param]+1)
                 vals = [0.5*(edges[j]+edges[j+1]) for j in range(dim_lengths[param])]
-                self.param_spacing[param] = vals[1]-vals[0]
+                param_spacing[param] = vals[1]-vals[0]
             param_vals.append(vals)
             param_edges[param] = edges
 
@@ -65,18 +66,18 @@ class Pmf(object):
         point_dicts = [{self.params[i]:point[i] for i in range(len(self.params))} for point in points]
 
         # initialize the Param_point objects
-        self.probs=[]
+        self.points=[]
         init_prob = 1./len(point_dicts)
         for point_dict in point_dicts:
             param_bounds={}
             for param in self.params:
-                spacing = self.param_spacing[param]
+                spacing = param_spacing[param]
                 if self.logspacing[param]:
                     param_bounds[param]=(point_dict[param]/np.sqrt(spacing),point_dict[param]*np.sqrt(spacing))
                 elif not self.logspacing[param]:
                     param_bounds[param]=(point_dict[param]-spacing/2.,point_dict[param]+spacing/2.)
             point=Param_point(point_dict, param_bounds, init_prob)
-            self.probs.append(point)
+            self.points.append(point)
 
     def normalize(self):
 
@@ -86,9 +87,9 @@ class Pmf(object):
         Should really figure out how to do the overloading properly in Param_point to make this more elegant eventually.
         """
 
-        norm_const = sum([prob.prob for prob in self.probs])
-        for prob in self.probs:
-            prob.prob = prob.prob/norm_const
+        norm_const = sum([point.prob for point in self.points])
+        for point in self.points:
+            point.prob = .prob/norm_const
 
     def subdivide(self, threshold_prob):
 
@@ -102,7 +103,7 @@ class Pmf(object):
 
         num_divs = {param:2 for param in self.params} #dummy for now
 
-        to_subdivide = [prob for prob in self.probs if prob.prob>threshold_prob]
+        to_subdivide = [point for point in self.points if point.prob>threshold_prob]
 
         for box in to_subdivide:
             # compute new parameter values and ranges
@@ -135,10 +136,10 @@ class Pmf(object):
                 bound_dicts.append(bound_dict)
             # awkward...
             for i in range(len(val_dicts)):
-                self.probs.append(Param_point(val_dicts[i], bound_dicts[i], box.prob/num_boxes))
+                self.points.append(Param_point(val_dicts[i], bound_dicts[i], box.prob/num_boxes))
 
             # remove old one
-            self.probs.remove(box)
+            self.points.remove(box)
 
         # should be normalized already, but just in case:
         self.normalize()
@@ -151,9 +152,9 @@ class Pmf(object):
 
         # check for silliness
         assert isinstance(other_pmf, Pmf), "You didn't feed in a Pmf object!"
-        assert len(self.probs) == len(other_pmf.probs), "Pmf's are over different numbers of points. Can't exactly do a pointwise multiplication on that, can I?"
+        assert len(self.points) == len(other_pmf.probs), "Pmf's are over different numbers of points. Can't exactly do a pointwise multiplication on that, can I?"
 
-        probs_temp = deepcopy(self.probs)
+        probs_temp = deepcopy(self.points)
 
         # do things
         for prob in probs_temp:
@@ -162,7 +163,7 @@ class Pmf(object):
             assert len(match_point)==1, "Something is wrong! Either no matches or multiple matches to the following parameter space point: " + str(prob)
             prob.prob = prob.prob * match_point[0].prob
 
-        self.probs = probs_temp
+        self.points = probs_temp
         self.normalize()
 
     def most_probable(self, n):
@@ -171,5 +172,5 @@ class Pmf(object):
         Return the n largest probabilities.
         """
 
-        sorted_probs = sorted(self.probs, key=lambda p: p.prob, reverse=True)
+        sorted_probs = sorted(self.points, key=lambda p: p.prob, reverse=True)
         return sorted_probs[0:n]
