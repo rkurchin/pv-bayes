@@ -85,7 +85,7 @@ class Pmf(object):
         Should really figure out how to do the overloading properly in Param_point to make this more elegant eventually.
         """
 
-        norm_const = sum([float(prob) for prob in self.probs])
+        norm_const = sum([prob.prob for prob in self.probs])
         for prob in self.probs:
             prob.prob = prob.prob/norm_const
 
@@ -101,7 +101,7 @@ class Pmf(object):
 
         num_divs = {param:2 for param in self.params} #dummy for now
 
-        to_subdivide = [prob for prob in test.probs if prob.prob>threshold_prob]
+        to_subdivide = [prob for prob in self.probs if prob.prob>threshold_prob]
 
         for box in to_subdivide:
             # compute new parameter values and ranges
@@ -111,17 +111,31 @@ class Pmf(object):
                 if self.logspacing[param]:
                     edges = np.geomspace(box.param_bounds[param][0], box.param_bounds[param][1], num=num_divs[param]+1)
                     bounds[param] = [(edges[i],edges[i+1]) for i in range(num_divs[param])]
-                    centers[param] = [np.sqrt(bounds[param][0]*bounds[param[1]]) for i in range(num_divs[param])]
+                    centers[param] = [np.sqrt(bounds[param][i][0]*bounds[param][i][1]) for i in range(num_divs[param])]
                 elif not self.logspacing[param]:
                     edges = np.linspace(box.param_bounds[param][0], box.param_bounds[param][1], num=num_divs[param]+1)
                     bounds[param] = [(edges[i],edges[i+1]) for i in range(num_divs[param])]
-                    centers[param] = [0.5*(bounds[param][0]+bounds[param[1]]) for i in range(num_divs[param])]
+                    centers[param] = [0.5*(bounds[param][i][0]+bounds[param][i][1]) for i in range(num_divs[param])]
             # create new points
             num_boxes = np.product(num_divs.values())
-            for i in range(num_boxes):
-                params = {param:centers[param][i] for param in self.params}
-                param_bounds = {param:bounds[param][i] for param in self.params}
-                self.probs.append(Param_point(params, param_bounds, box.prob/num_boxes))
+            vals = [centers[self.params[i]] for i in range(len(self.params))] #to preserve ordering
+            point_vals = product(*vals)
+            val_dicts = []
+            bound_dicts = []
+            for point in point_vals:
+                val_dict = {}
+                bound_dict = {}
+                for i in range(len(self.params)):
+                    param = self.params[i]
+                    val_dict[param] = point[i]
+                    val_ind = centers[param].index(point[i])
+                    bound_dict[param] = bounds[param][val_ind]
+                val_dicts.append(val_dict)
+                bound_dicts.append(bound_dict)
+            # awkward...
+            for i in range(len(val_dicts)):
+                self.probs.append(Param_point(val_dicts[i], bound_dicts[i], box.prob/num_boxes))
+
             # remove old one
             self.probs.remove(box)
 

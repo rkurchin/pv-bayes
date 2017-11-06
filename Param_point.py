@@ -41,4 +41,4 @@ class Param_point(object):
         return float(self.prob)
 
     def __str__(self):
-        return "param values" + str(self.params) + " probability: " + str(self.prob)
+        return "param ranges: " + str(self.param_bounds) + "\nprobability: " + str(self.prob)
