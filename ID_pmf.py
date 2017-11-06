@@ -15,13 +15,21 @@ class ID_Pmf(Pmf):
         # define other stuff by self.whatever = things
 
     def V_T(self, T):
+
+        """
+        Compute thermal voltage at a given temperature.
+        """
+
         return T*0.02585/300
 
     def compute_ID(self, V, T, params):
-        '''
-        Computes ideal diode output current. Params is a dict that should have
-        keys the same as param names.
-        '''
+
+        """
+        Compute ideal diode output current.
+
+        params is a dict that should have keys the same as param names.
+        """
+
         # check that names match (using sets so order doesn't matter)
         # probably shouldn't have overloaded the name params either...oops
         assert set(params.keys())==set(self.params), "Parameter names must match"
