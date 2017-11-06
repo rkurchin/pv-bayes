@@ -18,12 +18,12 @@ class Param_point(object):
     def __add__(self,other):
 
         """
-        Overload addition operator so probabilities can add in an intuitive way.
+        Overload addition operator so probabilities can add for normalization.
+
+        Returns a float, not a Param_point.
         """
 
-        assert self.params == other.params, "These probabilities are at different points in parameter space! You probably don't actually want to add them together."
-
-        return Param_point(self.params, self.prob + other.prob)
+        return self.prob + other.prob
 
     def __mul__(self,other):
 
