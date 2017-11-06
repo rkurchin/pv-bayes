@@ -1,6 +1,7 @@
 import numpy as np
 from itertools import product
 from Param_point import Param_point
+from copy import deepcopy
 
 class Pmf(object):
     """
@@ -146,20 +147,29 @@ class Pmf(object):
 
         """
         Compute and store renormalized product of this Pmf with other_pmf.
-
-        TODO:
-            * maybe this should return a new Pmf object instead? TBD
         """
 
         # check for silliness
         assert isinstance(other_pmf, Pmf), "You didn't feed in a Pmf object!"
-        # check that probs exist at same points
+        assert len(self.probs) == len(other_pmf.probs), "Pmf's are over different numbers of points. Can't exactly do a pointwise multiplication on that, can I?"
+
+        probs_temp = deepcopy(self.probs)
 
         # do things
+        for prob in probs_temp:
+            # find matching point in other_pmf
+            match_point = [point for point in other_pmf.probs if point.params == prob.params and point.param_bounds = prob.param_bounds]
+            assert len(match_point)==1, "Something is wrong! Either no matches or multiple matches to the following parameter space point: " + str(prob)
+            prob.prob = prob.prob * match_point[0].prob
+
+        self.probs = probs_temp
+        self.normalize()
 
     def most_probable(self, n):
-        '''
-        Returns the n largest probabilities and the associated parameter values.
-        '''
 
-        # do things
+        """
+        Return the n largest probabilities.
+        """
+
+        sorted_probs = sorted(self.probs, key=lambda p: p.prob, reverse=True)
+        return sorted_probs[0:n]
