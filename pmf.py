@@ -79,6 +79,11 @@ class Pmf(object):
             point=Param_point(point_dict, param_bounds, init_prob)
             self.points.append(point)
 
+    def __str__(self):
+        return "Parameter ranges: " + str(self.param_ranges) + "\n" + \
+               "Logspacing: " + str(self.logspacing) + "\n" + \
+               "Number of points: " + str(len(self.points))
+
     def normalize(self):
 
         """
@@ -89,7 +94,7 @@ class Pmf(object):
 
         norm_const = sum([point.prob for point in self.points])
         for point in self.points:
-            point.prob = .prob/norm_const
+            point.prob = point.prob/norm_const
 
     def subdivide(self, threshold_prob):
 
@@ -98,7 +103,7 @@ class Pmf(object):
 
         For now, just divides into two along each direction. Ideas for improvement:
         * divide proportional to probability mass in that box such that minimum prob is roughly equal to maximum prob of undivided boxes
-        * user-specified divisions along dimensions
+        * user-specified divisions along dimensions (including NOT dividing in a given direction)
         """
 
         num_divs = {param:2 for param in self.params} #dummy for now
@@ -152,14 +157,14 @@ class Pmf(object):
 
         # check for silliness
         assert isinstance(other_pmf, Pmf), "You didn't feed in a Pmf object!"
-        assert len(self.points) == len(other_pmf.probs), "Pmf's are over different numbers of points. Can't exactly do a pointwise multiplication on that, can I?"
+        assert len(self.points) == len(other_pmf.points), "Pmf's are over different numbers of points. Can't exactly do a pointwise multiplication on that, can I?"
 
         probs_temp = deepcopy(self.points)
 
         # do things
         for prob in probs_temp:
             # find matching point in other_pmf
-            match_point = [point for point in other_pmf.probs if point.params == prob.params and point.param_bounds = prob.param_bounds]
+            match_point = [point for point in other_pmf.points if point.params == prob.params and point.param_bounds == prob.param_bounds]
             assert len(match_point)==1, "Something is wrong! Either no matches or multiple matches to the following parameter space point: " + str(prob)
             prob.prob = prob.prob * match_point[0].prob
 
