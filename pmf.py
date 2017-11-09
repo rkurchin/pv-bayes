@@ -9,27 +9,28 @@ class Pmf(object):
 
     Stores probabilities in a list of Param_point objects which associate points in parameter space with probabilities.
 
-    A class for a specific case (e.g. JVTi with PC1D modeling, potentially TIDLS with SRH modeling, etc.) should inherit from this and include methods for calling the relevant model, computing likelihoods, etc.\
+    A class for a specific case (e.g. JVTi with PC1D modeling, potentially TIDLS with SRH modeling, etc.) should inherit from this and include methods for calling the relevant model, computing likelihoods, etc. Example: ID_pmf.py
 
-    TODO:
-    * make helper fcns for spacing, etc. based on log/linear to tidy up code and punt if statements to inside of another fcn
-    * more intuitive name for probs and Param_point?
+    Todo:
+        make helper fcns for spacing, etc. based on log/linear to tidy up code and punt if statements to inside of another fcn
+        more intuitive name for probs and Param_point?
 
-    QUESTIONS TO THINK ABOUT:
-    Where should info about observation conditions be stored? Does it need to be?
+    Notes:
+        Where should info about observation conditions be stored? Does it need to be?
 
-    How about simulation results? Can they be stored separately but maintain a
-    parallel/analogous data structure? Perhaps just a big index array?
+        How about simulation results? Can they be stored separately but maintain a parallel/analogous data structure? Perhaps just a big index array?
+
     """
 
     def __init__(self, param_names, dim_lengths, dim_mins, dim_maxes, log_spacing):
+        """Instantiate a uniform prior.
 
-        """
-        Instantiate a uniform prior.
-
-        param_names = list of strings
-        dim_lengths, dim_mins, dim_maxes = lists of ints
-        log_spacing = list of bools
+        Args:
+            param_names (:obj:`list` of :obj:`str`): names of params
+            dim_lengths (:obj:`list` of :obj:`int`): lengths of each param
+            dim_mins (:obj:`list` of :obj:`float`): minimum values of each param
+            dim_maxes (:obj:`list` of :obj:`float`): maximum values of each param
+            log_spacing (:obj:`list` of :obj:`bool`): whether each param is log-spaced
         """
 
         # check that you haven't fed in anything silly

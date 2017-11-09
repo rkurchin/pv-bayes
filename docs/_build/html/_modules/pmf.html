@@ -1,0 +1,268 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pmf &mdash; pv-bayes 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="pv-bayes 0.1 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pmf</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="kn">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="kn">import</span> <span class="n">product</span>
+<span class="kn">from</span> <span class="nn">Param_point</span> <span class="kn">import</span> <span class="n">Param_point</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+
+<div class="viewcode-block" id="Pmf"><a class="viewcode-back" href="../pmf.html#pmf.Pmf">[docs]</a><span class="k">class</span> <span class="nc">Pmf</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Class that stores a PMF capable of nested sampling / &quot;adaptive mesh refinement&quot;.</span>
+
+<span class="sd">    Stores probabilities in a list of Param_point objects which associate points in parameter space with probabilities.</span>
+
+<span class="sd">    A class for a specific case (e.g. JVTi with PC1D modeling, potentially TIDLS with SRH modeling, etc.) should inherit from this and include methods for calling the relevant model, computing likelihoods, etc. Example: ID_pmf.py</span>
+
+<span class="sd">    Todo:</span>
+<span class="sd">        make helper fcns for spacing, etc. based on log/linear to tidy up code and punt if statements to inside of another fcn</span>
+<span class="sd">        more intuitive name for probs and Param_point?</span>
+
+<span class="sd">    Notes:</span>
+<span class="sd">        Where should info about observation conditions be stored? Does it need to be?</span>
+
+<span class="sd">        How about simulation results? Can they be stored separately but maintain a parallel/analogous data structure? Perhaps just a big index array?</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">param_names</span><span class="p">,</span> <span class="n">dim_lengths</span><span class="p">,</span> <span class="n">dim_mins</span><span class="p">,</span> <span class="n">dim_maxes</span><span class="p">,</span> <span class="n">log_spacing</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Instantiate a uniform prior.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            param_names (:obj:`list` of :obj:`str`): names of params</span>
+<span class="sd">            dim_lengths (:obj:`list` of :obj:`int`): lengths of each param</span>
+<span class="sd">            dim_mins (:obj:`list` of :obj:`float`): minimum values of each param</span>
+<span class="sd">            dim_maxes (:obj:`list` of :obj:`float`): maximum values of each param</span>
+<span class="sd">            log_spacing (:obj:`list` of :obj:`bool`): whether each param is log-spaced</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># check that you haven&#39;t fed in anything silly</span>
+        <span class="n">l</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">param_names</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">dim_lengths</span><span class="p">)</span><span class="o">==</span><span class="n">l</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">dim_mins</span><span class="p">)</span><span class="o">==</span><span class="n">l</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">dim_maxes</span><span class="p">)</span><span class="o">==</span><span class="n">l</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">log_spacing</span><span class="p">)</span><span class="o">==</span><span class="n">l</span><span class="p">,</span> <span class="s2">&quot;Lengths of all inputs need to match!&quot;</span>
+
+        <span class="k">assert</span> <span class="nb">all</span><span class="p">([</span><span class="n">dim_maxes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">&gt;</span><span class="n">dim_mins</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dim_maxes</span><span class="p">))]),</span> <span class="s2">&quot;Maximum values must be greater than minimum values!&quot;</span>
+
+        <span class="c1"># copy in things</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">param_names</span> <span class="c1"># order corresponds to order of indices</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">param_ranges</span><span class="o">=</span><span class="p">{</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">i</span><span class="p">]:[</span><span class="n">dim_mins</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">dim_maxes</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">param_names</span><span class="p">))}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logspacing</span> <span class="o">=</span> <span class="p">{</span><span class="n">param_names</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span><span class="n">log_spacing</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">param_names</span><span class="p">))}</span>
+
+        <span class="c1"># make lists of values of each param</span>
+        <span class="n">param_vals</span><span class="o">=</span><span class="p">[]</span>
+        <span class="n">dim_lengths</span><span class="o">=</span><span class="p">{</span><span class="n">param_names</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span><span class="n">dim_lengths</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">param_names</span><span class="p">))}</span>
+        <span class="n">param_spacing</span><span class="o">=</span><span class="p">{}</span> <span class="c1"># difference if linear, quotient if log</span>
+        <span class="n">param_edges</span><span class="o">=</span><span class="p">{}</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
+            <span class="n">param_range</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">param_ranges</span><span class="p">[</span><span class="n">param</span><span class="p">]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">logspacing</span><span class="p">[</span><span class="n">param</span><span class="p">]:</span>
+                <span class="n">edges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">geomspace</span><span class="p">(</span><span class="n">param_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">param_range</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">num</span><span class="o">=</span><span class="n">dim_lengths</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">edges</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">*</span><span class="n">edges</span><span class="p">[</span><span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dim_lengths</span><span class="p">[</span><span class="n">param</span><span class="p">])]</span>
+                <span class="n">param_spacing</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">vals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="n">vals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">logspacing</span><span class="p">[</span><span class="n">param</span><span class="p">]:</span>
+                <span class="n">edges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">param_range</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">param_range</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">num</span><span class="o">=</span><span class="n">dim_lengths</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">vals</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">edges</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">+</span><span class="n">edges</span><span class="p">[</span><span class="n">j</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">dim_lengths</span><span class="p">[</span><span class="n">param</span><span class="p">])]</span>
+                <span class="n">param_spacing</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">vals</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">vals</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">param_vals</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">vals</span><span class="p">)</span>
+            <span class="n">param_edges</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">edges</span>
+
+        <span class="c1"># get list of points and make dicts</span>
+        <span class="n">points</span> <span class="o">=</span> <span class="n">product</span><span class="p">(</span><span class="o">*</span><span class="n">param_vals</span><span class="p">)</span>
+        <span class="n">point_dicts</span> <span class="o">=</span> <span class="p">[{</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span><span class="n">point</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">))}</span> <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">points</span><span class="p">]</span>
+
+        <span class="c1"># initialize the Param_point objects</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">=</span><span class="p">[]</span>
+        <span class="n">init_prob</span> <span class="o">=</span> <span class="mf">1.</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">point_dicts</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">point_dict</span> <span class="ow">in</span> <span class="n">point_dicts</span><span class="p">:</span>
+            <span class="n">param_bounds</span><span class="o">=</span><span class="p">{}</span>
+            <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
+                <span class="n">spacing</span> <span class="o">=</span> <span class="n">param_spacing</span><span class="p">[</span><span class="n">param</span><span class="p">]</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">logspacing</span><span class="p">[</span><span class="n">param</span><span class="p">]:</span>
+                    <span class="n">param_bounds</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">=</span><span class="p">(</span><span class="n">point_dict</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">spacing</span><span class="p">),</span><span class="n">point_dict</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">spacing</span><span class="p">))</span>
+                <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">logspacing</span><span class="p">[</span><span class="n">param</span><span class="p">]:</span>
+                    <span class="n">param_bounds</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">=</span><span class="p">(</span><span class="n">point_dict</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">-</span><span class="n">spacing</span><span class="o">/</span><span class="mf">2.</span><span class="p">,</span><span class="n">point_dict</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">+</span><span class="n">spacing</span><span class="o">/</span><span class="mf">2.</span><span class="p">)</span>
+            <span class="n">point</span><span class="o">=</span><span class="n">Param_point</span><span class="p">(</span><span class="n">point_dict</span><span class="p">,</span> <span class="n">param_bounds</span><span class="p">,</span> <span class="n">init_prob</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">point</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;Parameter ranges: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">param_ranges</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> \
+               <span class="s2">&quot;Logspacing: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">logspacing</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> \
+               <span class="s2">&quot;Number of points: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">))</span>
+
+<div class="viewcode-block" id="Pmf.normalize"><a class="viewcode-back" href="../pmf.html#pmf.Pmf.normalize">[docs]</a>    <span class="k">def</span> <span class="nf">normalize</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Normalize overall PMF.</span>
+
+<span class="sd">        Should really figure out how to do the overloading properly in Param_point to make this more elegant eventually.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">norm_const</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">point</span><span class="o">.</span><span class="n">prob</span> <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">:</span>
+            <span class="n">point</span><span class="o">.</span><span class="n">prob</span> <span class="o">=</span> <span class="n">point</span><span class="o">.</span><span class="n">prob</span><span class="o">/</span><span class="n">norm_const</span></div>
+
+<div class="viewcode-block" id="Pmf.subdivide"><a class="viewcode-back" href="../pmf.html#pmf.Pmf.subdivide">[docs]</a>    <span class="k">def</span> <span class="nf">subdivide</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">threshold_prob</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Subdivide all boxes with P &gt; threshold_prob and assign &quot;locally uniform&quot; probabilities within each box.</span>
+
+<span class="sd">        For now, just divides into two along each direction. Ideas for improvement:</span>
+<span class="sd">        * divide proportional to probability mass in that box such that minimum prob is roughly equal to maximum prob of undivided boxes</span>
+<span class="sd">        * user-specified divisions along dimensions (including NOT dividing in a given direction)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">num_divs</span> <span class="o">=</span> <span class="p">{</span><span class="n">param</span><span class="p">:</span><span class="mi">2</span> <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">}</span> <span class="c1">#dummy for now</span>
+
+        <span class="n">to_subdivide</span> <span class="o">=</span> <span class="p">[</span><span class="n">point</span> <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">points</span> <span class="k">if</span> <span class="n">point</span><span class="o">.</span><span class="n">prob</span><span class="o">&gt;</span><span class="n">threshold_prob</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">box</span> <span class="ow">in</span> <span class="n">to_subdivide</span><span class="p">:</span>
+            <span class="c1"># compute new parameter values and ranges</span>
+            <span class="n">centers</span><span class="o">=</span><span class="p">{}</span>
+            <span class="n">bounds</span><span class="o">=</span><span class="p">{}</span>
+            <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">logspacing</span><span class="p">[</span><span class="n">param</span><span class="p">]:</span>
+                    <span class="n">edges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">geomspace</span><span class="p">(</span><span class="n">box</span><span class="o">.</span><span class="n">param_bounds</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">box</span><span class="o">.</span><span class="n">param_bounds</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">num</span><span class="o">=</span><span class="n">num_divs</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">bounds</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="p">[(</span><span class="n">edges</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">edges</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_divs</span><span class="p">[</span><span class="n">param</span><span class="p">])]</span>
+                    <span class="n">centers</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">bounds</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_divs</span><span class="p">[</span><span class="n">param</span><span class="p">])]</span>
+                <span class="k">elif</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">logspacing</span><span class="p">[</span><span class="n">param</span><span class="p">]:</span>
+                    <span class="n">edges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">box</span><span class="o">.</span><span class="n">param_bounds</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="n">box</span><span class="o">.</span><span class="n">param_bounds</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="n">num</span><span class="o">=</span><span class="n">num_divs</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+                    <span class="n">bounds</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="p">[(</span><span class="n">edges</span><span class="p">[</span><span class="n">i</span><span class="p">],</span><span class="n">edges</span><span class="p">[</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_divs</span><span class="p">[</span><span class="n">param</span><span class="p">])]</span>
+                    <span class="n">centers</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.5</span><span class="o">*</span><span class="p">(</span><span class="n">bounds</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">+</span><span class="n">bounds</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_divs</span><span class="p">[</span><span class="n">param</span><span class="p">])]</span>
+            <span class="c1"># create new points</span>
+            <span class="n">num_boxes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="n">num_divs</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+            <span class="n">vals</span> <span class="o">=</span> <span class="p">[</span><span class="n">centers</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">))]</span> <span class="c1">#to preserve ordering</span>
+            <span class="n">point_vals</span> <span class="o">=</span> <span class="n">product</span><span class="p">(</span><span class="o">*</span><span class="n">vals</span><span class="p">)</span>
+            <span class="n">val_dicts</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">bound_dicts</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">point_vals</span><span class="p">:</span>
+                <span class="n">val_dict</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="n">bound_dict</span> <span class="o">=</span> <span class="p">{}</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">)):</span>
+                    <span class="n">param</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="n">val_dict</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">point</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="n">val_ind</span> <span class="o">=</span> <span class="n">centers</span><span class="p">[</span><span class="n">param</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">point</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                    <span class="n">bound_dict</span><span class="p">[</span><span class="n">param</span><span class="p">]</span> <span class="o">=</span> <span class="n">bounds</span><span class="p">[</span><span class="n">param</span><span class="p">][</span><span class="n">val_ind</span><span class="p">]</span>
+                <span class="n">val_dicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val_dict</span><span class="p">)</span>
+                <span class="n">bound_dicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bound_dict</span><span class="p">)</span>
+            <span class="c1"># awkward...</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">val_dicts</span><span class="p">)):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Param_point</span><span class="p">(</span><span class="n">val_dicts</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">bound_dicts</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">box</span><span class="o">.</span><span class="n">prob</span><span class="o">/</span><span class="n">num_boxes</span><span class="p">))</span>
+
+            <span class="c1"># remove old one</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">box</span><span class="p">)</span>
+
+        <span class="c1"># should be normalized already, but just in case:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Pmf.multiply"><a class="viewcode-back" href="../pmf.html#pmf.Pmf.multiply">[docs]</a>    <span class="k">def</span> <span class="nf">multiply</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other_pmf</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Compute and store renormalized product of this Pmf with other_pmf.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># check for silliness</span>
+        <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other_pmf</span><span class="p">,</span> <span class="n">Pmf</span><span class="p">),</span> <span class="s2">&quot;You didn&#39;t feed in a Pmf object!&quot;</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">other_pmf</span><span class="o">.</span><span class="n">points</span><span class="p">),</span> <span class="s2">&quot;Pmf&#39;s are over different numbers of points. Can&#39;t exactly do a pointwise multiplication on that, can I?&quot;</span>
+
+        <span class="n">probs_temp</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">)</span>
+
+        <span class="c1"># do things</span>
+        <span class="k">for</span> <span class="n">prob</span> <span class="ow">in</span> <span class="n">probs_temp</span><span class="p">:</span>
+            <span class="c1"># find matching point in other_pmf</span>
+            <span class="n">match_point</span> <span class="o">=</span> <span class="p">[</span><span class="n">point</span> <span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">other_pmf</span><span class="o">.</span><span class="n">points</span> <span class="k">if</span> <span class="n">point</span><span class="o">.</span><span class="n">params</span> <span class="o">==</span> <span class="n">prob</span><span class="o">.</span><span class="n">params</span> <span class="ow">and</span> <span class="n">point</span><span class="o">.</span><span class="n">param_bounds</span> <span class="o">==</span> <span class="n">prob</span><span class="o">.</span><span class="n">param_bounds</span><span class="p">]</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">match_point</span><span class="p">)</span><span class="o">==</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;Something is wrong! Either no matches or multiple matches to the following parameter space point: &quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">prob</span><span class="p">)</span>
+            <span class="n">prob</span><span class="o">.</span><span class="n">prob</span> <span class="o">=</span> <span class="n">prob</span><span class="o">.</span><span class="n">prob</span> <span class="o">*</span> <span class="n">match_point</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">prob</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">points</span> <span class="o">=</span> <span class="n">probs_temp</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Pmf.most_probable"><a class="viewcode-back" href="../pmf.html#pmf.Pmf.most_probable">[docs]</a>    <span class="k">def</span> <span class="nf">most_probable</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return the n largest probabilities.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">sorted_probs</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">points</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">prob</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sorted_probs</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="n">n</span><span class="p">]</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Rachel C Kurchin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

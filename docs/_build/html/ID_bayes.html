@@ -1,0 +1,133 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>ID_bayes module &mdash; pv-bayes 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="pv-bayes 0.1 documentation" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-ID_bayes">
+<span id="id-bayes-module"></span><h1>ID_bayes module<a class="headerlink" href="#module-ID_bayes" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="ID_bayes.likelihood">
+<code class="descclassname">ID_bayes.</code><code class="descname">likelihood</code><span class="sig-paren">(</span><em>probs</em>, <em>J_meas</em>, <em>V_meas</em>, <em>T</em>, <em>J_err</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ID_bayes.html#likelihood"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ID_bayes.likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute Bayesian likelihood, assuming Gaussian error with stdev of J_err.</p>
+<p>probs is a Pmf object of some flavor
+rest of inputs are lists of equal length</p>
+<p>For now, I&#8217;m &#8220;running the model&#8221; inside this function. In &#8220;real&#8221; versions,
+modeled data should probably be an input.</p>
+<p>2D-ness is also hard-coded for now.</p>
+<div class="admonition-todo admonition" id="index-0">
+<p class="first admonition-title">Todo</p>
+<ul class="last simple">
+<li>fix above-mentioned stuff</li>
+<li>other error models (e.g. exponential for current etc.)</li>
+<li>make a Bayes class that this can inherit from</li>
+<li>allow to feed in list of observations</li>
+</ul>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="ID_bayes.resample_probs">
+<code class="descclassname">ID_bayes.</code><code class="descname">resample_probs</code><span class="sig-paren">(</span><em>pmf</em>, <em>num_samples</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ID_bayes.html#resample_probs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ID_bayes.resample_probs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Because the seaborn functions don&#8217;t support weighting but make really pretty plots, I wrote this function to resample so that points in parameter space are just duplicated a number of times proportional to their probability. It generates these points uniformly spaced across the range for aesthetic purposes, and returns a DataFrame.</p>
+<p>TODO:
+* write a more general version of this - maybe even just move it to the Pmf class</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="ID_bayes.visualize_probs">
+<code class="descclassname">ID_bayes.</code><code class="descname">visualize_probs</code><span class="sig-paren">(</span><em>pmf</em>, <em>type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/ID_bayes.html#visualize_probs"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#ID_bayes.visualize_probs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plot joint distribution of n and J_0. Type should either be &#8220;hex&#8221; or &#8220;kde&#8221;</p>
+<p>TODO:
+* write a more general version of this that can check for itself when things are logarithmic and handle them appropriately with labels and such
+* Add anotation with entropy
+* maybe just rewrite calling JointGrid directly if need be</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/ID_bayes.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Rachel C Kurchin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="_sources/ID_bayes.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

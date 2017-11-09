@@ -1,0 +1,140 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pmf module &mdash; pv-bayes 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="pv-bayes 0.1 documentation" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-pmf">
+<span id="pmf-module"></span><h1>pmf module<a class="headerlink" href="#module-pmf" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="pmf.Pmf">
+<em class="property">class </em><code class="descclassname">pmf.</code><code class="descname">Pmf</code><span class="sig-paren">(</span><em>param_names</em>, <em>dim_lengths</em>, <em>dim_mins</em>, <em>dim_maxes</em>, <em>log_spacing</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pmf.html#Pmf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pmf.Pmf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Class that stores a PMF capable of nested sampling / &#8220;adaptive mesh refinement&#8221;.</p>
+<p>Stores probabilities in a list of Param_point objects which associate points in parameter space with probabilities.</p>
+<p>A class for a specific case (e.g. JVTi with PC1D modeling, potentially TIDLS with SRH modeling, etc.) should inherit from this and include methods for calling the relevant model, computing likelihoods, etc. Example: ID_pmf.py</p>
+<div class="admonition-todo admonition" id="index-0">
+<p class="first admonition-title">Todo</p>
+<p class="last">make helper fcns for spacing, etc. based on log/linear to tidy up code and punt if statements to inside of another fcn
+more intuitive name for probs and Param_point?</p>
+</div>
+<p class="rubric">Notes</p>
+<p>Where should info about observation conditions be stored? Does it need to be?</p>
+<p>How about simulation results? Can they be stored separately but maintain a parallel/analogous data structure? Perhaps just a big index array?</p>
+<dl class="method">
+<dt id="pmf.Pmf.most_probable">
+<code class="descname">most_probable</code><span class="sig-paren">(</span><em>n</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pmf.html#Pmf.most_probable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pmf.Pmf.most_probable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the n largest probabilities.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pmf.Pmf.multiply">
+<code class="descname">multiply</code><span class="sig-paren">(</span><em>other_pmf</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pmf.html#Pmf.multiply"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pmf.Pmf.multiply" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compute and store renormalized product of this Pmf with other_pmf.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pmf.Pmf.normalize">
+<code class="descname">normalize</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pmf.html#Pmf.normalize"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pmf.Pmf.normalize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Normalize overall PMF.</p>
+<p>Should really figure out how to do the overloading properly in Param_point to make this more elegant eventually.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="pmf.Pmf.subdivide">
+<code class="descname">subdivide</code><span class="sig-paren">(</span><em>threshold_prob</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pmf.html#Pmf.subdivide"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pmf.Pmf.subdivide" title="Permalink to this definition">¶</a></dt>
+<dd><p>Subdivide all boxes with P &gt; threshold_prob and assign &#8220;locally uniform&#8221; probabilities within each box.</p>
+<p>For now, just divides into two along each direction. Ideas for improvement:
+* divide proportional to probability mass in that box such that minimum prob is roughly equal to maximum prob of undivided boxes
+* user-specified divisions along dimensions (including NOT dividing in a given direction)</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/pmf.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Rachel C Kurchin.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="_sources/pmf.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
