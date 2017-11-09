@@ -1,1 +1,3 @@
 *.pyc
+.ipynb_checkpoints
+ID_plotting.nb
